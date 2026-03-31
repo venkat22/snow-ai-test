@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Snow Data Marketplace Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="hero card">
+        <p class="eyebrow">Stretch Portal</p>
+        <h1>Snow Data Marketplace</h1>
+        <p class="subtitle">
+          Discover governed products, inspect SLA posture, and run semantic metadata search from one place.
+        </p>
+        <div class="health" id="health"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Data Products</h2>
+          <button id="refreshProducts">Refresh</button>
+        </div>
+        <div id="products" class="grid"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>AI Metadata Search</h2>
+        </div>
+        <form id="searchForm" class="search-form">
+          <input id="query" placeholder="Try: revenue, cohort, quota, customer" minlength="2" required />
+          <button type="submit">Search</button>
+        </form>
+        <div id="results" class="results"></div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2>Manual Release Gate</h2>
+        </div>
+        <p>Use only after real consumer-side marketplace validation is complete.</p>
+        <form id="gateForm" class="gate-form">
+          <input id="gateNote" value="Validated from consumer account" />
+          <button type="submit">Mark Marketplace Gate Pass</button>
+        </form>
+        <pre id="gateResponse"></pre>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

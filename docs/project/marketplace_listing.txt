@@ -1,0 +1,52 @@
+Sales Analytics Data Bundle
+
+Overview
+Curated Sales-domain data products for dashboarding, forecasting, and cohort analysis.
+Built on Snowflake medallion architecture (Bronze/Silver/Gold) with documented SLAs and governance.
+
+Included Data Products
+1) RAW_SALES.GOLD.sales_rep_monthly_performance
+- Purpose: Sales manager KPI tracking by rep and month
+- Key metrics: revenue_generated, quota_attainment_pct, unique_customers, orders_closed, mom_growth_pct
+- Refresh: Daily
+
+2) RAW_SALES.GOLD.customer_revenue_forecast
+- Purpose: Finance planning and account-level revenue projections
+- Key metrics: projected_12month_revenue, conservative_forecast, optimistic_forecast, forecast_tier
+- Refresh: Monthly
+
+3) RAW_SALES.GOLD.customer_acquisition_cohort
+- Purpose: Marketing retention and LTV analysis by acquisition cohort
+- Key metrics: retention_pct, cohort_revenue, ltv_per_acquiree
+- Refresh: Weekly
+
+SLA Commitments
+- sales_rep_monthly_performance: Daily refresh, target <1s query latency
+- customer_revenue_forecast: Monthly refresh, target <5s query latency
+- customer_acquisition_cohort: Weekly refresh, target <100ms query latency
+
+Governance
+- Ownership
+  - Sales Operations: sales_rep_monthly_performance
+  - Finance: customer_revenue_forecast
+  - Marketing: customer_acquisition_cohort
+- Access Roles
+  - SALES_ANALYSTS
+  - FINANCE_ANALYSTS
+  - MARKETING_ANALYSTS
+  - DATA_CONSUMERS
+
+Data Quality
+- DAMA 6 dimensions implemented in Silver layer
+- Monitoring objects
+  - RAW_SALES.MONITORING.data_quality_log
+  - RAW_SALES.MONITORING.order_items_rejected
+  - RAW_SALES.MONITORING.product_sla_status
+
+Sample Consumer Queries
+SELECT * FROM <shared_db>.GOLD.sales_rep_monthly_performance LIMIT 10;
+SELECT * FROM <shared_db>.GOLD.customer_revenue_forecast LIMIT 10;
+SELECT * FROM <shared_db>.GOLD.customer_acquisition_cohort LIMIT 10;
+
+Contact
+support@company.com

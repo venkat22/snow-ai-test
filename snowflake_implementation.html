@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Snowflake Implementation Report — RAW_SALES</title>
+<style>
+  :root {
+    --sf-blue: #29B5E8;
+    --sf-dark: #0D2233;
+    --sf-navy: #11354A;
+    --sf-light: #E8F4FA;
+    --gold: #F5A623;
+    --silver: #8B9DAF;
+    --bronze: #CD7F32;
+    --landing: #6C5CE7;
+    --green: #00B894;
+    --red: #E17055;
+    --feature: #A29BFE;
+    --monitor: #FDCB6E;
+    --card-bg: #FFFFFF;
+    --text: #1a1a2e;
+    --text-muted: #636e7b;
+    --border: #E2E8F0;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4ecf7 100%);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, var(--sf-dark) 0%, var(--sf-navy) 50%, #1a4a6e 100%);
+    color: white;
+    padding: 60px 40px 50px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 50%, rgba(41,181,232,0.1) 0%, transparent 50%),
+                radial-gradient(circle at 70% 50%, rgba(41,181,232,0.08) 0%, transparent 40%);
+    animation: float 20s ease-in-out infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translate(0,0); }
+    50% { transform: translate(-20px, 10px); }
+  }
+  .hero h1 {
+    font-size: 2.8em;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    position: relative;
+    z-index: 1;
+  }
+  .hero h1 span { color: var(--sf-blue); }
+  .hero .subtitle {
+    font-size: 1.2em;
+    opacity: 0.85;
+    margin-top: 10px;
+    position: relative;
+    z-index: 1;
+  }
+  .hero .meta-row {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 30px;
+    position: relative;
+    z-index: 1;
+  }
+  .hero .meta-item {
+    text-align: center;
+  }
+  .hero .meta-item .label {
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    opacity: 0.6;
+  }
+  .hero .meta-item .value {
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-top: 2px;
+  }
+
+  .container {
+    max-width: 1300px;
+    margin: 0 auto;
+    padding: 40px 30px;
+  }
+
+  /* Section Headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 50px 0 24px;
+  }
+  .section-header .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3em;
+    flex-shrink: 0;
+  }
+  .section-header h2 {
+    font-size: 1.6em;
+    font-weight: 700;
+    color: var(--sf-dark);
+  }
+  .section-header .badge {
+    font-size: 0.7em;
+    background: var(--sf-light);
+    color: var(--sf-blue);
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  /* Stats Row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .stat-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .stat-card .number {
+    font-size: 2.2em;
+    font-weight: 800;
+    color: var(--sf-dark);
+    line-height: 1;
+  }
+  .stat-card .label {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-top: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  /* Architecture Flow */
+  .arch-flow {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    margin: 30px 0;
+    overflow-x: auto;
+    padding: 10px 0;
+  }
+  .arch-layer {
+    flex: 1;
+    min-width: 180px;
+    background: white;
+    border-radius: 14px;
+    padding: 20px 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 2px solid var(--border);
+    position: relative;
+    transition: transform 0.2s;
+  }
+  .arch-layer:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+  .arch-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8em;
+    color: var(--sf-blue);
+    min-width: 40px;
+    flex-shrink: 0;
+  }
+  .arch-layer .layer-badge {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.7em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    color: white;
+  }
+  .arch-layer .layer-name {
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 8px;
+    color: var(--sf-dark);
+  }
+  .arch-layer .layer-desc {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+  .arch-layer .obj-count {
+    font-size: 0.78em;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin: 3px 0;
+  }
+  .arch-layer .obj-count strong { color: var(--text); }
+
+  .bg-landing { background: var(--landing); }
+  .bg-bronze { background: var(--bronze); }
+  .bg-silver { background: var(--silver); }
+  .bg-gold { background: var(--gold); }
+  .bg-feature { background: var(--feature); }
+  .bg-monitor { background: var(--monitor); color: var(--sf-dark); }
+
+  .border-landing { border-color: var(--landing); }
+  .border-bronze { border-color: var(--bronze); }
+  .border-silver { border-color: var(--silver); }
+  .border-gold { border-color: var(--gold); }
+  .border-feature { border-color: var(--feature); }
+  .border-monitor { border-color: var(--monitor); }
+
+  /* Table Cards */
+  .layer-detail {
+    background: white;
+    border-radius: 14px;
+    padding: 28px;
+    margin-bottom: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--sf-blue);
+  }
+  .layer-detail h3 {
+    font-size: 1.2em;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .layer-detail h3 .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88em;
+  }
+  thead th {
+    background: var(--sf-light);
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--sf-dark);
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border);
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f3f7;
+    color: var(--text);
+  }
+  tbody tr:hover { background: #f8fafd; }
+  .mono { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.92em; }
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.78em;
+    font-weight: 600;
+    margin: 1px 2px;
+  }
+  .tag-blue { background: #EBF5FB; color: #2980B9; }
+  .tag-green { background: #EAFAF1; color: #27AE60; }
+  .tag-orange { background: #FEF5E7; color: #E67E22; }
+  .tag-purple { background: #F4ECF7; color: #8E44AD; }
+  .tag-red { background: #FDEDEC; color: #C0392B; }
+  .tag-gray { background: #F2F3F4; color: #7F8C8D; }
+
+  .rows-fmt { color: var(--sf-blue); font-weight: 600; }
+  .dynamic-badge {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72em;
+    font-weight: 600;
+    margin-left: 6px;
+  }
+  .stream-badge {
+    background: linear-gradient(135deg, #00B894, #55EFC4);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72em;
+    font-weight: 600;
+  }
+
+  /* Star Schema */
+  .star-schema {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    margin: 30px 0;
+    flex-wrap: wrap;
+  }
+  .fact-table {
+    background: linear-gradient(135deg, var(--gold), #F7DC6F);
+    color: var(--sf-dark);
+    border-radius: 16px;
+    padding: 24px 32px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.1em;
+    box-shadow: 0 4px 16px rgba(245,166,35,0.3);
+    min-width: 180px;
+  }
+  .fact-table .fact-label {
+    font-size: 0.65em;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    opacity: 0.7;
+  }
+  .fact-table .fact-name { font-size: 1.2em; margin-top: 4px; }
+  .fact-table .fact-rows { font-size: 0.75em; opacity: 0.8; margin-top: 4px; }
+  .dims-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .dim-chip {
+    background: white;
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.85em;
+    font-weight: 600;
+    text-align: center;
+    color: var(--sf-dark);
+    transition: all 0.2s;
+  }
+  .dim-chip:hover { background: #FEF9E7; transform: scale(1.03); }
+  .dim-chip .dim-rows { font-size: 0.75em; color: var(--text-muted); font-weight: 400; }
+
+  /* Feature Registry */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 14px;
+  }
+  .feature-card {
+    background: white;
+    border-radius: 12px;
+    padding: 18px;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--feature);
+    transition: transform 0.2s;
+  }
+  .feature-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+  .feature-card .feat-id { font-family: monospace; font-size: 0.78em; color: var(--feature); font-weight: 700; }
+  .feature-card .feat-name { font-weight: 600; font-size: 0.92em; margin: 4px 0; }
+  .feature-card .feat-desc { font-size: 0.8em; color: var(--text-muted); }
+  .feature-card .feat-meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+  /* Warehouse cards */
+  .wh-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .wh-card {
+    background: white;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+  }
+  .wh-card .wh-name {
+    font-weight: 700;
+    font-size: 1.05em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .wh-card .wh-props {
+    margin-top: 12px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .wh-card .wh-prop {
+    font-size: 0.82em;
+  }
+  .wh-card .wh-prop .wh-label { color: var(--text-muted); }
+  .wh-card .wh-prop .wh-val { font-weight: 600; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+  }
+  .status-started { background: var(--green); }
+  .status-suspended { background: var(--silver); }
+
+  /* Listings */
+  .listing-card {
+    background: white;
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+  }
+  .listing-card .listing-title {
+    font-size: 1.15em;
+    font-weight: 700;
+    color: var(--sf-dark);
+  }
+  .listing-card .listing-sub {
+    font-size: 0.88em;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Monitoring */
+  .task-timeline {
+    position: relative;
+    padding-left: 30px;
+  }
+  .task-timeline::before {
+    content: '';
+    position: absolute;
+    left: 10px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .task-item {
+    position: relative;
+    margin-bottom: 18px;
+    padding: 14px 18px;
+    background: white;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+  .task-item::before {
+    content: '';
+    position: absolute;
+    left: -24px;
+    top: 18px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--monitor);
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px var(--monitor);
+  }
+  .task-item .task-name { font-weight: 700; font-size: 0.95em; }
+  .task-item .task-schedule { font-size: 0.82em; color: var(--text-muted); margin-top: 2px; }
+  .task-item .task-def { font-size: 0.8em; font-family: monospace; color: var(--silver); margin-top: 6px; background: #f8f9fa; padding: 6px 10px; border-radius: 6px; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+  @media (max-width: 700px) {
+    .arch-flow { flex-direction: column; align-items: stretch; }
+    .arch-arrow { transform: rotate(90deg); }
+    .star-schema { flex-direction: column; }
+  }
+
+  .footer {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+    font-size: 0.82em;
+  }
+
+  .divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--border), transparent);
+    margin: 40px 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1><span>Snowflake</span> Implementation Report</h1>
+  <div class="subtitle">RAW_SALES Medallion Architecture &mdash; Full Platform Overview</div>
+  <div class="meta-row">
+    <div class="meta-item">
+      <div class="label">Account</div>
+      <div class="value">HHTXHEQ-BA04062</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Region</div>
+      <div class="value">AWS US-East-2</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Role</div>
+      <div class="value">ACCOUNTADMIN</div>
+    </div>
+    <div class="meta-item">
+      <div class="label">Generated</div>
+      <div class="value">March 31, 2026</div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- KEY METRICS -->
+<div class="stats-row" style="margin-top: -20px;">
+  <div class="stat-card">
+    <div class="number">4</div>
+    <div class="label">Databases</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">7</div>
+    <div class="label">Schemas</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">46</div>
+    <div class="label">Tables</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">1.16B</div>
+    <div class="label">Total Rows</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">21</div>
+    <div class="label">ML Features</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">3</div>
+    <div class="label">Warehouses</div>
+  </div>
+  <div class="stat-card">
+    <div class="number">2</div>
+    <div class="label">Data Products</div>
+  </div>
+</div>
+
+<!-- ARCHITECTURE OVERVIEW -->
+<div class="section-header">
+  <div class="icon" style="background: var(--sf-light); color: var(--sf-blue);">&#9670;</div>
+  <h2>Medallion Architecture</h2>
+  <span class="badge">Data Pipeline</span>
+</div>
+
+<div class="arch-flow">
+  <div class="arch-layer border-landing">
+    <span class="layer-badge bg-landing">Landing</span>
+    <div class="layer-name">Raw Ingestion</div>
+    <div class="layer-desc">Source system extracts, untransformed</div>
+    <div class="obj-count">&#128202; <strong>6</strong> tables</div>
+    <div class="obj-count">&#128203; <strong>7.86M</strong> rows</div>
+  </div>
+  <div class="arch-arrow">&#10132;</div>
+  <div class="arch-layer border-bronze">
+    <span class="layer-badge bg-bronze">Bronze</span>
+    <div class="layer-name">Raw + CDC</div>
+    <div class="layer-desc">Append-only with change tracking</div>
+    <div class="obj-count">&#128202; <strong>6</strong> tables</div>
+    <div class="obj-count">&#9889; <strong>6</strong> delta streams</div>
+    <div class="obj-count">&#128203; <strong>7.86M</strong> rows</div>
+  </div>
+  <div class="arch-arrow">&#10132;</div>
+  <div class="arch-layer border-silver">
+    <span class="layer-badge bg-silver">Silver</span>
+    <div class="layer-name">Cleaned &amp; Conformed</div>
+    <div class="layer-desc">Business rules applied, dynamic tables</div>
+    <div class="obj-count">&#128202; <strong>9</strong> tables (3 dynamic)</div>
+    <div class="obj-count">&#128065; <strong>1</strong> view</div>
+    <div class="obj-count">&#128203; <strong>9.51M</strong> rows</div>
+  </div>
+  <div class="arch-arrow">&#10132;</div>
+  <div class="arch-layer border-gold">
+    <span class="layer-badge bg-gold">Gold</span>
+    <div class="layer-name">Business-Ready</div>
+    <div class="layer-desc">Star schema, KPIs, ML models</div>
+    <div class="obj-count">&#128202; <strong>16</strong> tables</div>
+    <div class="obj-count">&#128065; <strong>1</strong> view</div>
+    <div class="obj-count">&#128203; <strong>6.5M</strong> rows</div>
+  </div>
+  <div class="arch-arrow">&#10132;</div>
+  <div class="arch-layer border-feature">
+    <span class="layer-badge bg-feature">Feature Store</span>
+    <div class="layer-name">ML Features</div>
+    <div class="layer-desc">Point-in-time features, registry</div>
+    <div class="obj-count">&#128202; <strong>9</strong> tables</div>
+    <div class="obj-count">&#128065; <strong>6</strong> views</div>
+    <div class="obj-count">&#128203; <strong>1.16B</strong> rows</div>
+  </div>
+</div>
+
+<!-- WAREHOUSES -->
+<div class="section-header">
+  <div class="icon" style="background: #EBF5FB; color: var(--sf-blue);">&#9881;</div>
+  <h2>Compute Warehouses</h2>
+</div>
+<div class="wh-grid">
+  <div class="wh-card">
+    <div class="wh-name"><span class="status-dot status-started"></span> ANALYTICS_WH</div>
+    <div class="wh-props">
+      <div class="wh-prop"><div class="wh-label">Size</div><div class="wh-val">X-Small</div></div>
+      <div class="wh-prop"><div class="wh-label">State</div><div class="wh-val" style="color:var(--green)">STARTED</div></div>
+      <div class="wh-prop"><div class="wh-label">Auto-Suspend</div><div class="wh-val">60s</div></div>
+      <div class="wh-prop"><div class="wh-label">Scaling</div><div class="wh-val">1 cluster</div></div>
+    </div>
+    <div style="font-size:0.78em; color:var(--text-muted); margin-top:10px;">Medallion architecture project warehouse</div>
+  </div>
+  <div class="wh-card">
+    <div class="wh-name"><span class="status-dot status-suspended"></span> COMPUTE_WH</div>
+    <div class="wh-props">
+      <div class="wh-prop"><div class="wh-label">Size</div><div class="wh-val">X-Small</div></div>
+      <div class="wh-prop"><div class="wh-label">State</div><div class="wh-val" style="color:var(--silver)">SUSPENDED</div></div>
+      <div class="wh-prop"><div class="wh-label">Auto-Suspend</div><div class="wh-val">300s</div></div>
+      <div class="wh-prop"><div class="wh-label">Default</div><div class="wh-val">Yes</div></div>
+    </div>
+  </div>
+  <div class="wh-card">
+    <div class="wh-name"><span class="status-dot status-suspended"></span> SYSTEM$STREAMLIT_NOTEBOOK_WH</div>
+    <div class="wh-props">
+      <div class="wh-prop"><div class="wh-label">Size</div><div class="wh-val">X-Small</div></div>
+      <div class="wh-prop"><div class="wh-label">State</div><div class="wh-val" style="color:var(--silver)">SUSPENDED</div></div>
+      <div class="wh-prop"><div class="wh-label">Auto-Suspend</div><div class="wh-val">60s</div></div>
+      <div class="wh-prop"><div class="wh-label">Max Clusters</div><div class="wh-val">10</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- LANDING LAYER -->
+<div class="section-header">
+  <div class="icon" style="background: #EDE7F6; color: var(--landing);">&#9660;</div>
+  <h2>Landing Layer</h2>
+  <span class="badge">Source Data</span>
+</div>
+<div class="layer-detail" style="border-left-color: var(--landing);">
+  <h3><span class="dot" style="background:var(--landing)"></span> RAW_SALES.LANDING</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">CUSTOMERS</td><td class="rows-fmt">150,000</td><td>Customer master data</td></tr>
+      <tr><td class="mono">ORDERS</td><td class="rows-fmt">1,500,000</td><td>Order headers</td></tr>
+      <tr><td class="mono">ORDER_ITEMS</td><td class="rows-fmt">6,001,215</td><td>Order line items</td></tr>
+      <tr><td class="mono">PRODUCTS</td><td class="rows-fmt">200,000</td><td>Product catalog</td></tr>
+      <tr><td class="mono">SALES_REPS</td><td class="rows-fmt">10,000</td><td>Sales representative data</td></tr>
+      <tr><td class="mono">TERRITORIES</td><td class="rows-fmt">25</td><td>Territory reference data</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- BRONZE LAYER -->
+<div class="section-header">
+  <div class="icon" style="background: #FBE9E7; color: var(--bronze);">&#9670;</div>
+  <h2>Bronze Layer</h2>
+  <span class="badge">CDC Enabled</span>
+</div>
+<div class="layer-detail" style="border-left-color: var(--bronze);">
+  <h3><span class="dot" style="background:var(--bronze)"></span> RAW_SALES.BRONZE &mdash; Raw Tables + Delta Streams</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th><th>Stream</th><th>Stream Type</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">CUSTOMERS_RAW</td><td class="rows-fmt">150,000</td><td><span class="stream-badge">CUSTOMERS_RAW_STREAM</span></td><td>DELTA</td></tr>
+      <tr><td class="mono">ORDERS_RAW</td><td class="rows-fmt">1,500,000</td><td><span class="stream-badge">ORDERS_RAW_STREAM</span></td><td>DELTA</td></tr>
+      <tr><td class="mono">ORDER_ITEMS_RAW</td><td class="rows-fmt">6,001,215</td><td><span class="stream-badge">ORDER_ITEMS_RAW_STREAM</span></td><td>DELTA</td></tr>
+      <tr><td class="mono">PRODUCTS_RAW</td><td class="rows-fmt">200,000</td><td><span class="stream-badge">PRODUCTS_RAW_STREAM</span></td><td>DELTA</td></tr>
+      <tr><td class="mono">SALES_REPS_RAW</td><td class="rows-fmt">10,000</td><td><span class="stream-badge">SALES_REPS_RAW_STREAM</span></td><td>DELTA</td></tr>
+      <tr><td class="mono">TERRITORIES_RAW</td><td class="rows-fmt">25</td><td><span class="stream-badge">TERRITORIES_RAW_STREAM</span></td><td>DELTA</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- SILVER LAYER -->
+<div class="section-header">
+  <div class="icon" style="background: #ECEFF1; color: var(--silver);">&#9672;</div>
+  <h2>Silver Layer</h2>
+  <span class="badge">Cleaned &amp; Conformed</span>
+</div>
+<div class="layer-detail" style="border-left-color: var(--silver);">
+  <h3><span class="dot" style="background:var(--silver)"></span> RAW_SALES.SILVER</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th><th>Type</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">CUSTOMERS</td><td class="rows-fmt">150,000</td><td><span class="tag tag-gray">Static</span></td></tr>
+      <tr><td class="mono">CUSTOMERS_DT</td><td class="rows-fmt">150,000</td><td><span class="dynamic-badge">Dynamic Table</span></td></tr>
+      <tr><td class="mono">ORDERS</td><td class="rows-fmt">1,500,000</td><td><span class="tag tag-gray">Static</span></td></tr>
+      <tr><td class="mono">ORDERS_DT</td><td class="rows-fmt">1,500,000</td><td><span class="dynamic-badge">Dynamic Table</span></td></tr>
+      <tr><td class="mono">ORDER_ITEMS</td><td class="rows-fmt">6,001,215</td><td><span class="tag tag-gray">Static</span></td></tr>
+      <tr><td class="mono">ORDER_ITEMS_DT</td><td class="rows-fmt">6,001,215</td><td><span class="dynamic-badge">Dynamic Table</span></td></tr>
+      <tr><td class="mono">PRODUCTS</td><td class="rows-fmt">200,000</td><td><span class="tag tag-gray">Static</span></td></tr>
+      <tr><td class="mono">SALES_REPS</td><td class="rows-fmt">10,000</td><td><span class="tag tag-gray">Static</span></td></tr>
+      <tr><td class="mono">TERRITORIES</td><td class="rows-fmt">25</td><td><span class="tag tag-gray">Static</span></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top: 14px;">
+    <strong>Views:</strong> <span class="tag tag-blue">SALES_REPS_WITH_TERRITORY</span>
+  </div>
+</div>
+
+<!-- GOLD LAYER -->
+<div class="section-header">
+  <div class="icon" style="background: #FFF8E1; color: var(--gold);">&#9733;</div>
+  <h2>Gold Layer</h2>
+  <span class="badge">Business Ready</span>
+</div>
+
+<!-- Star Schema Visual -->
+<div class="star-schema">
+  <div class="dims-grid">
+    <div class="dim-chip">DIM_CUSTOMERS<br><span class="dim-rows">150K rows</span></div>
+    <div class="dim-chip">DIM_PRODUCTS<br><span class="dim-rows">200K rows</span></div>
+    <div class="dim-chip">DIM_SALES_REPS<br><span class="dim-rows">10K rows</span></div>
+    <div class="dim-chip">DIM_TERRITORIES<br><span class="dim-rows">25 rows</span></div>
+    <div class="dim-chip" style="grid-column: span 2;">DIM_DATES<br><span class="dim-rows">2,923 rows</span></div>
+  </div>
+  <div class="fact-table">
+    <div class="fact-label">Fact Table</div>
+    <div class="fact-name">FACT_ORDERS</div>
+    <div class="fact-rows">6,001,215 rows</div>
+    <div style="font-size:0.6em; margin-top:8px; opacity:0.7;">ORDER_ITEM_KEY &bull; ORDER_ID &bull; CUSTOMER_ID<br>PRODUCT_ID &bull; REP_ID &bull; TERRITORY_ID<br>DATE_KEY &bull; QUANTITY &bull; UNIT_PRICE<br>DISCOUNT_RATE &bull; REVENUE &bull; ORDER_TOTAL<br>ORDER_STATUS &bull; RETURN_FLAG</div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="layer-detail" style="border-left-color: var(--gold);">
+    <h3><span class="dot" style="background:var(--gold)"></span> Analytics Tables</h3>
+    <table>
+      <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">MONTHLY_SALES_SUMMARY</td><td class="rows-fmt">2,000</td></tr>
+        <tr><td class="mono">PRODUCT_PERFORMANCE</td><td class="rows-fmt">200,000</td></tr>
+        <tr><td class="mono">SALES_REP_MONTHLY_PERFORMANCE</td><td class="rows-fmt">79,710</td></tr>
+        <tr><td class="mono">SALES_REP_SCORECARD</td><td class="rows-fmt">1,000</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="layer-detail" style="border-left-color: var(--gold);">
+    <h3><span class="dot" style="background:var(--gold)"></span> ML / AI Tables</h3>
+    <table>
+      <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">CUSTOMER_LIFETIME_VALUE</td><td class="rows-fmt">150,000</td></tr>
+        <tr><td class="mono">CUSTOMER_SEGMENTATION</td><td class="rows-fmt">99,996</td></tr>
+        <tr><td class="mono">CUSTOMER_ACQUISITION_COHORT</td><td class="rows-fmt">2,927</td></tr>
+        <tr><td class="mono">CUSTOMER_REVENUE_FORECAST</td><td class="rows-fmt">99,996</td></tr>
+        <tr><td class="mono">AI_SEMANTIC_METADATA</td><td class="rows-fmt">3</td></tr>
+        <tr><td class="mono">AI_RETRIEVAL_INDEX_STUB</td><td class="rows-fmt">2</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px"><strong>View:</strong> <span class="tag tag-blue">AI_RAG_QUERY_PATH_STUB</span></div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- FEATURE STORE -->
+<div class="section-header">
+  <div class="icon" style="background: #EDE7F6; color: var(--feature);">&#9733;</div>
+  <h2>Feature Store</h2>
+  <span class="badge">21 Registered Features</span>
+</div>
+
+<div class="layer-detail" style="border-left-color: var(--feature);">
+  <h3><span class="dot" style="background:var(--feature)"></span> Offline Feature Tables</h3>
+  <table>
+    <thead><tr><th>Table</th><th>Rows</th><th>Entity</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">CUSTOMER_ENGAGEMENT_FEATURES_OFFLINE</td><td class="rows-fmt">274,233,157</td><td><span class="tag tag-blue">customer</span></td></tr>
+      <tr><td class="mono">CUSTOMER_RFM_FEATURES_OFFLINE</td><td class="rows-fmt">274,233,157</td><td><span class="tag tag-blue">customer</span></td></tr>
+      <tr><td class="mono">PRODUCT_PERFORMANCE_FEATURES_OFFLINE</td><td class="rows-fmt">584,600,000</td><td><span class="tag tag-green">product</span></td></tr>
+      <tr><td class="mono">SALES_REP_QUOTA_FEATURES_OFFLINE</td><td class="rows-fmt">29,230,000</td><td><span class="tag tag-orange">sales_rep</span></td></tr>
+    </tbody>
+  </table>
+  <div style="margin-top:12px;">
+    <strong>Views:</strong>
+    <span class="tag tag-purple">TRAINING_DATA_PRODUCTS</span>
+    <span class="tag tag-purple">V_FEATURES_BY_ENTITY</span>
+    <span class="tag tag-purple">V_FEATURE_LINEAGE_TREE</span>
+    <span class="tag tag-purple">V_FEATURE_OWNERSHIP</span>
+    <span class="tag tag-purple">V_FEATURE_REGISTRY_BROWSER</span>
+    <span class="tag tag-purple">V_FEATURE_VERSION_HISTORY</span>
+  </div>
+  <div style="margin-top:12px;">
+    <strong>Metadata:</strong>
+    <span class="tag tag-gray">FEATURE_REGISTRY (21)</span>
+    <span class="tag tag-gray">FEATURE_LINEAGE (4)</span>
+    <span class="tag tag-gray">ENTITY_KEYS</span>
+    <span class="tag tag-gray">FEATURE_SNAPSHOTS</span>
+    <span class="tag tag-gray">FEATURE_VERSIONS</span>
+  </div>
+</div>
+
+<h3 style="margin: 20px 0 14px; font-size:1.1em;">Feature Registry &mdash; All 21 Registered Features</h3>
+
+<div class="feature-grid">
+  <!-- Customer RFM Features -->
+  <div class="feature-card">
+    <div class="feat-id">cust_recency_days</div>
+    <div class="feat-name">Customer Recency (Days Since Last Purchase)</div>
+    <div class="feat-desc">Days since last order within 12-month window</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-purple">rfm</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_frequency_12m</div>
+    <div class="feat-name">Customer Frequency (12-Month Orders)</div>
+    <div class="feat-desc">Number of orders in past 12 months</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-purple">rfm</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_monetary_12m</div>
+    <div class="feat-name">Customer Monetary Value (12-Month)</div>
+    <div class="feat-desc">Total revenue in past 12 months</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-purple">rfm</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_rfm_composite_score</div>
+    <div class="feat-name">Customer RFM Composite Score</div>
+    <div class="feat-desc">Sum of R, F, M scores (3-15 range)</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-purple">rfm</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_segment_rfm</div>
+    <div class="feat-name">Customer Segment (RFM)</div>
+    <div class="feat-desc">VIP | Loyal | At-Risk | Inactive | Engaged</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-purple">segmentation</span>
+      <span class="tag tag-gray">VARCHAR</span>
+    </div>
+  </div>
+  <!-- Engagement Features -->
+  <div class="feature-card">
+    <div class="feat-id">cust_days_since_purchase</div>
+    <div class="feat-name">Days Since Last Purchase</div>
+    <div class="feat-desc">Recency in days</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-orange">engagement</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_engagement_status</div>
+    <div class="feat-name">Customer Engagement Status</div>
+    <div class="feat-desc">Active | Dormant | At-Risk | Churned</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-orange">churn</span>
+      <span class="tag tag-gray">VARCHAR</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_lifetime_value</div>
+    <div class="feat-name">Customer Lifetime Value</div>
+    <div class="feat-desc">Total revenue from customer</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-green">CLV</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_lifetime_order_count</div>
+    <div class="feat-name">Customer Lifetime Order Count</div>
+    <div class="feat-desc">Total number of orders</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-green">CLV</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">cust_avg_order_value</div>
+    <div class="feat-name">Customer Average Order Value</div>
+    <div class="feat-desc">LTV / order count</div>
+    <div class="feat-meta">
+      <span class="tag tag-blue">customer</span>
+      <span class="tag tag-green">CLV</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <!-- Product Features -->
+  <div class="feature-card">
+    <div class="feat-id">prod_cumulative_revenue</div>
+    <div class="feat-name">Product Cumulative Revenue</div>
+    <div class="feat-desc">Total revenue generated by product</div>
+    <div class="feat-meta">
+      <span class="tag tag-green">product</span>
+      <span class="tag tag-orange">revenue</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">prod_revenue_12m</div>
+    <div class="feat-name">Product Revenue (12-Month)</div>
+    <div class="feat-desc">Revenue in past 12 months</div>
+    <div class="feat-meta">
+      <span class="tag tag-green">product</span>
+      <span class="tag tag-orange">revenue</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">prod_units_sold</div>
+    <div class="feat-name">Product Cumulative Units Sold</div>
+    <div class="feat-desc">Total units sold</div>
+    <div class="feat-meta">
+      <span class="tag tag-green">product</span>
+      <span class="tag tag-purple">volume</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">prod_return_rate_pct</div>
+    <div class="feat-name">Product Return Rate (%)</div>
+    <div class="feat-desc">Percentage of items returned</div>
+    <div class="feat-meta">
+      <span class="tag tag-green">product</span>
+      <span class="tag tag-red">quality</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">prod_revenue_rank</div>
+    <div class="feat-name">Product Revenue Rank</div>
+    <div class="feat-desc">Dense rank by revenue (1 = top)</div>
+    <div class="feat-meta">
+      <span class="tag tag-green">product</span>
+      <span class="tag tag-purple">ranking</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <!-- Sales Rep Features -->
+  <div class="feature-card">
+    <div class="feat-id">rep_ytd_revenue</div>
+    <div class="feat-name">Sales Rep YTD Revenue</div>
+    <div class="feat-desc">Year-to-date revenue</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">quota</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">rep_quota</div>
+    <div class="feat-name">Sales Rep Quota</div>
+    <div class="feat-desc">Annual quota target</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">quota</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">rep_quota_attainment_ratio</div>
+    <div class="feat-name">Sales Rep Quota Attainment Ratio</div>
+    <div class="feat-desc">YTD revenue / quota</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">quota</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">rep_quota_attainment_pct</div>
+    <div class="feat-name">Sales Rep Quota Attainment (%)</div>
+    <div class="feat-desc">YTD revenue as % of quota</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">quota</span>
+      <span class="tag tag-gray">DECIMAL</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">rep_ytd_orders</div>
+    <div class="feat-name">Sales Rep YTD Order Count</div>
+    <div class="feat-desc">Orders closed YTD</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">performance</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+  <div class="feature-card">
+    <div class="feat-id">rep_ytd_customers</div>
+    <div class="feat-name">Sales Rep YTD Customer Count</div>
+    <div class="feat-desc">Unique customers engaged YTD</div>
+    <div class="feat-meta">
+      <span class="tag tag-orange">sales_rep</span>
+      <span class="tag tag-purple">performance</span>
+      <span class="tag tag-gray">INT</span>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- MONITORING -->
+<div class="section-header">
+  <div class="icon" style="background: #FFF9C4; color: #F39C12;">&#9888;</div>
+  <h2>Monitoring &amp; Data Quality</h2>
+  <span class="badge">Observability</span>
+</div>
+
+<div class="two-col">
+  <div class="layer-detail" style="border-left-color: var(--monitor);">
+    <h3><span class="dot" style="background:var(--monitor)"></span> Monitoring Tables</h3>
+    <table>
+      <thead><tr><th>Table</th><th>Rows</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">DATA_QUALITY_LOG</td><td class="rows-fmt">18</td></tr>
+        <tr><td class="mono">RELEASE_GATE_RESULTS</td><td class="rows-fmt">28</td></tr>
+        <tr><td class="mono">TASK_RUN_AUDIT</td><td class="rows-fmt">6</td></tr>
+        <tr><td class="mono">SNOWPARK_JOB_RUNS</td><td class="rows-fmt">5</td></tr>
+        <tr><td class="mono">MANUAL_RELEASE_CHECKS</td><td class="rows-fmt">1</td></tr>
+        <tr><td class="mono">ORDER_ITEMS_REJECTED</td><td class="rows-fmt">0</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:10px">
+      <strong>View:</strong> <span class="tag tag-blue">PRODUCT_SLA_STATUS</span>
+    </div>
+    <div style="margin-top:8px">
+      <strong>Procedures:</strong> <span class="tag tag-green">RUN_PRODUCT_VALIDATION</span> <span class="tag tag-green">VALIDATE_BEFORE_REFRESH</span>
+    </div>
+  </div>
+
+  <div>
+    <h3 style="margin-bottom:14px; font-size:1.05em;">Scheduled Validation Tasks</h3>
+    <div class="task-timeline">
+      <div class="task-item">
+        <div class="task-name">TASK_VALIDATE_CUSTOMER_ACQUISITION_COHORT</div>
+        <div class="task-schedule">Every Monday at 1:00 PM UTC &bull; <span class="tag tag-red">Suspended</span></div>
+        <div class="task-def">CALL run_product_validation('customer_acquisition_cohort', ...)</div>
+      </div>
+      <div class="task-item">
+        <div class="task-name">TASK_VALIDATE_CUSTOMER_REVENUE_FORECAST</div>
+        <div class="task-schedule">2nd of every month at 2:00 PM UTC &bull; <span class="tag tag-red">Suspended</span></div>
+        <div class="task-def">CALL run_product_validation('customer_revenue_forecast', ...)</div>
+      </div>
+      <div class="task-item">
+        <div class="task-name">TASK_VALIDATE_SALES_REP_MONTHLY</div>
+        <div class="task-schedule">Daily at 1:00 PM UTC &bull; <span class="tag tag-red">Suspended</span></div>
+        <div class="task-def">CALL run_product_validation('sales_rep_monthly_performance', ...)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- DATA PRODUCTS / SHARING -->
+<div class="section-header">
+  <div class="icon" style="background: #E8F5E9; color: #27AE60;">&#9741;</div>
+  <h2>Data Products &amp; Sharing</h2>
+  <span class="badge">Marketplace</span>
+</div>
+
+<div class="listing-card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+      <div class="listing-title">Sales Analytics Data Bundle</div>
+      <div class="listing-sub">Curated sales KPI, forecast, and cohort products</div>
+    </div>
+    <div>
+      <span class="tag tag-green" style="font-size:0.85em;">PUBLISHED</span>
+      <span class="tag tag-blue" style="font-size:0.85em;">PRIVATE</span>
+    </div>
+  </div>
+  <div style="margin-top:14px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:10px; font-size:0.85em;">
+    <div><strong>Listing ID:</strong> GZT1Z3XRYJQ</div>
+    <div><strong>Share:</strong> SALES_ANALYTICS_BUNDLE_SHARE</div>
+    <div><strong>Source DB:</strong> RAW_SALES</div>
+    <div><strong>Target:</strong> HHTXHEQ.BA04062</div>
+    <div><strong>Distribution:</strong> EXTERNAL</div>
+    <div><strong>Published:</strong> March 30, 2026</div>
+  </div>
+</div>
+
+<div class="listing-card">
+  <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+    <div>
+      <div class="listing-title">Test Listing</div>
+      <div class="listing-sub">Draft listing for testing</div>
+    </div>
+    <div>
+      <span class="tag tag-orange" style="font-size:0.85em;">DRAFT</span>
+    </div>
+  </div>
+  <div style="margin-top:14px; display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap:10px; font-size:0.85em;">
+    <div><strong>Listing ID:</strong> GZT1Z3XRYJU</div>
+    <div><strong>Share:</strong> RAW_SALES_SNOWFLAKE_SHARE_*</div>
+    <div><strong>Source DB:</strong> RAW_SALES</div>
+    <div><strong>Created:</strong> March 30, 2026</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- DATABASE OVERVIEW -->
+<div class="section-header">
+  <div class="icon" style="background: var(--sf-light); color: var(--sf-blue);">&#9776;</div>
+  <h2>All Databases</h2>
+</div>
+
+<div class="layer-detail" style="border-left-color: var(--sf-blue);">
+  <table>
+    <thead><tr><th>Database</th><th>Purpose</th><th>Key Schemas</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="mono" style="font-weight:700;">RAW_SALES</td>
+        <td>Primary analytics database &mdash; medallion architecture</td>
+        <td>
+          <span class="tag tag-purple">LANDING</span>
+          <span class="tag tag-orange">BRONZE</span>
+          <span class="tag tag-gray">SILVER</span>
+          <span class="tag tag-blue">GOLD</span>
+          <span class="tag tag-purple">FEATURE_STORE</span>
+          <span class="tag tag-green">MONITORING</span>
+        </td>
+      </tr>
+      <tr>
+        <td class="mono">SNOWFLAKE</td>
+        <td>System database &mdash; account usage, billing, ML, Cortex</td>
+        <td><span class="tag tag-gray">ACCOUNT_USAGE</span> <span class="tag tag-gray">CORTEX</span> <span class="tag tag-gray">ML</span> +26 more</td>
+      </tr>
+      <tr>
+        <td class="mono">SNOWFLAKE_SAMPLE_DATA</td>
+        <td>Sample TPC-DS/TPC-H benchmark datasets</td>
+        <td><span class="tag tag-gray">TPCH_SF1</span> <span class="tag tag-gray">TPCDS_SF100TCL</span> +5 more</td>
+      </tr>
+      <tr>
+        <td class="mono">USER$TARNAKA</td>
+        <td>User workspace</td>
+        <td><span class="tag tag-gray">PUBLIC</span> <span class="tag tag-gray">LOCAL</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- end container -->
+
+<div class="footer">
+  Snowflake Implementation Report &mdash; Account HHTXHEQ-BA04062 &mdash; Generated March 31, 2026<br>
+  <span style="opacity:0.6;">Auto-generated from live Snowflake metadata</span>
+</div>
+
+</body>
+</html>

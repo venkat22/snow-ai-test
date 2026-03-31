@@ -1,0 +1,1471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Data Platform on Snowflake</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --snow-blue: #29B5E8;
+    --snow-blue-dim: rgba(41, 181, 232, 0.15);
+    --snow-blue-glow: rgba(41, 181, 232, 0.4);
+    --bg-primary: #0B0E14;
+    --bg-secondary: #111520;
+    --bg-card: #151A26;
+    --bg-card-hover: #1A2030;
+    --text-primary: #E8ECF4;
+    --text-secondary: #8892A4;
+    --text-dim: #5A6374;
+    --accent-green: #34D399;
+    --accent-amber: #FBBF24;
+    --accent-rose: #F472B6;
+    --accent-violet: #A78BFA;
+    --border-subtle: rgba(255,255,255,0.06);
+    --border-accent: rgba(41, 181, 232, 0.25);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+  }
+
+  /* ─── Slide Container ─── */
+  .deck {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+  }
+
+  .slide {
+    position: absolute;
+    inset: 0;
+    display: none;
+    flex-direction: column;
+    padding: 60px 80px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+  }
+
+  .slide.active {
+    display: flex;
+    opacity: 1;
+  }
+
+  /* ─── Navigation ─── */
+  .nav-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: rgba(11, 14, 20, 0.9);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--border-subtle);
+    z-index: 100;
+    padding: 0 24px;
+  }
+
+  .nav-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: none;
+    padding: 0;
+  }
+
+  .nav-dot.active {
+    background: var(--snow-blue);
+    width: 24px;
+    border-radius: 4px;
+    box-shadow: 0 0 12px var(--snow-blue-glow);
+  }
+
+  .nav-counter {
+    position: fixed;
+    bottom: 56px;
+    right: 32px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+    z-index: 100;
+  }
+
+  .nav-hint {
+    position: fixed;
+    bottom: 56px;
+    left: 32px;
+    font-size: 11px;
+    color: var(--text-dim);
+    z-index: 100;
+  }
+
+  /* ─── Typography ─── */
+  .slide-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--snow-blue);
+    margin-bottom: 16px;
+    font-weight: 500;
+  }
+
+  h1 {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -2px;
+  }
+
+  h2 {
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -1px;
+  }
+
+  h3 {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+
+  .subtitle {
+    font-size: 20px;
+    color: var(--text-secondary);
+    font-weight: 300;
+    line-height: 1.6;
+    max-width: 640px;
+  }
+
+  .mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .text-blue { color: var(--snow-blue); }
+  .text-green { color: var(--accent-green); }
+  .text-amber { color: var(--accent-amber); }
+  .text-rose { color: var(--accent-rose); }
+  .text-violet { color: var(--accent-violet); }
+  .text-dim { color: var(--text-secondary); }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 28px;
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    border-color: var(--border-accent);
+    background: var(--bg-card-hover);
+  }
+
+  .card-accent {
+    border-left: 3px solid var(--snow-blue);
+  }
+
+  /* ─── Grid Layouts ─── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 20px; }
+  .flex-col { display: flex; flex-direction: column; }
+  .flex-row { display: flex; flex-direction: row; }
+  .gap-sm { gap: 12px; }
+  .gap-md { gap: 20px; }
+  .gap-lg { gap: 32px; }
+  .flex-1 { flex: 1; }
+
+  /* ─── Badges ─── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--snow-blue-dim);
+    color: var(--snow-blue);
+    border: 1px solid rgba(41, 181, 232, 0.2);
+  }
+
+  .badge-green { background: rgba(52, 211, 153, 0.1); color: var(--accent-green); border-color: rgba(52, 211, 153, 0.2); }
+  .badge-amber { background: rgba(251, 191, 36, 0.1); color: var(--accent-amber); border-color: rgba(251, 191, 36, 0.2); }
+  .badge-rose { background: rgba(244, 114, 182, 0.1); color: var(--accent-rose); border-color: rgba(244, 114, 182, 0.2); }
+  .badge-violet { background: rgba(167, 139, 250, 0.1); color: var(--accent-violet); border-color: rgba(167, 139, 250, 0.2); }
+
+  /* ─── Stat Block ─── */
+  .stat-value {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--snow-blue);
+    line-height: 1;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .stat-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    font-weight: 400;
+  }
+
+  /* ─── Decorative ─── */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    pointer-events: none;
+  }
+
+  .grid-bg {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(41, 181, 232, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(41, 181, 232, 0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+  }
+
+  .line-accent {
+    width: 48px;
+    height: 3px;
+    background: var(--snow-blue);
+    border-radius: 2px;
+    margin: 16px 0;
+  }
+
+  /* ─── Flow Diagram ─── */
+  .flow-container {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 20px 0;
+  }
+
+  .flow-node {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    min-width: 140px;
+  }
+
+  .flow-box {
+    padding: 16px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    border: 1px solid;
+    position: relative;
+    min-width: 140px;
+  }
+
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--text-dim);
+    font-size: 20px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .flow-arrow svg {
+    width: 40px;
+    height: 20px;
+  }
+
+  .flow-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── SLA Bar ─── */
+  .sla-bar {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--bg-primary);
+    overflow: hidden;
+    margin-top: 8px;
+  }
+
+  .sla-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
+  /* ─── Gate Graphic ─── */
+  .gate {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    font-size: 13px;
+  }
+
+  .gate-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    flex-shrink: 0;
+    background: rgba(52, 211, 153, 0.15);
+    color: var(--accent-green);
+    border: 1px solid rgba(52, 211, 153, 0.25);
+  }
+
+  /* ─── Slide-specific ─── */
+
+  /* Title slide */
+  .slide-title {
+    justify-content: center;
+    align-items: flex-start;
+    position: relative;
+  }
+
+  .slide-title .glow-orb {
+    width: 600px; height: 600px;
+    background: var(--snow-blue);
+    right: -100px; top: -100px;
+  }
+
+  .snowflake-svg {
+    position: absolute;
+    right: 80px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.06;
+    width: 500px;
+    height: 500px;
+  }
+
+  /* Feature list */
+  .feature-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .feature-item:last-child { border-bottom: none; }
+
+  .feature-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 16px;
+  }
+
+  /* Product cards */
+  .product-card {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .product-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+
+  .product-1::before { background: var(--snow-blue); }
+  .product-2::before { background: var(--accent-amber); }
+  .product-3::before { background: var(--accent-green); }
+
+  .refresh-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Numbers grid */
+  .number-card {
+    text-align: center;
+    padding: 24px 16px;
+  }
+
+  /* UI mockup */
+  .ui-mockup {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .ui-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    background: rgba(0,0,0,0.3);
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .ui-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+
+  .ui-body { padding: 20px; }
+
+  .ui-card-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .ui-mini-card {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .ui-search {
+    background: var(--bg-primary);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  /* ─── Animations ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .slide.active .anim {
+    animation: fadeUp 0.6s ease forwards;
+    opacity: 0;
+  }
+
+  .slide.active .anim-d1 { animation-delay: 0.1s; }
+  .slide.active .anim-d2 { animation-delay: 0.2s; }
+  .slide.active .anim-d3 { animation-delay: 0.3s; }
+  .slide.active .anim-d4 { animation-delay: 0.4s; }
+  .slide.active .anim-d5 { animation-delay: 0.5s; }
+  .slide.active .anim-d6 { animation-delay: 0.6s; }
+  .slide.active .anim-d7 { animation-delay: 0.7s; }
+  .slide.active .anim-d8 { animation-delay: 0.8s; }
+
+  @keyframes pulse-glow {
+    0%, 100% { opacity: 0.12; }
+    50% { opacity: 0.22; }
+  }
+
+  .pulse { animation: pulse-glow 4s ease-in-out infinite; }
+
+  /* ─── Print / Export ─── */
+  @media print {
+    .nav-bar, .nav-counter, .nav-hint { display: none; }
+    .slide { position: relative; display: flex !important; opacity: 1 !important; page-break-after: always; height: 100vh; }
+  }
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 1 — TITLE
+       Composition: Left-heavy with decorative right
+       ══════════════════════════════════════════════ -->
+  <div class="slide slide-title active" id="slide-1">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse"></div>
+    <!-- Decorative snowflake -->
+    <svg class="snowflake-svg" viewBox="0 0 200 200" fill="none">
+      <g stroke="rgba(41,181,232,0.5)" stroke-width="1.5">
+        <line x1="100" y1="10" x2="100" y2="190"/>
+        <line x1="10" y1="100" x2="190" y2="100"/>
+        <line x1="35" y1="35" x2="165" y2="165"/>
+        <line x1="165" y1="35" x2="35" y2="165"/>
+        <circle cx="100" cy="100" r="30" stroke-dasharray="4 4"/>
+        <circle cx="100" cy="100" r="60" stroke-dasharray="6 6" opacity="0.5"/>
+        <circle cx="100" cy="100" r="88" stroke-dasharray="8 8" opacity="0.3"/>
+        <!-- Branch details -->
+        <line x1="100" y1="40" x2="80" y2="55"/><line x1="100" y1="40" x2="120" y2="55"/>
+        <line x1="100" y1="160" x2="80" y2="145"/><line x1="100" y1="160" x2="120" y2="145"/>
+        <line x1="40" y1="100" x2="55" y2="80"/><line x1="40" y1="100" x2="55" y2="120"/>
+        <line x1="160" y1="100" x2="145" y2="80"/><line x1="160" y1="100" x2="145" y2="120"/>
+      </g>
+    </svg>
+
+    <div style="max-width: 720px; z-index: 1;">
+      <div class="slide-label anim anim-d1">Technical Challenge Presentation</div>
+      <h1 class="anim anim-d2" style="margin-bottom: 24px;">
+        Sales Data Platform<br>
+        <span class="text-blue">on Snowflake</span>
+      </h1>
+      <div class="line-accent anim anim-d3"></div>
+      <p class="subtitle anim anim-d4">
+        A production-ready Medallion Architecture with ML Feature Store, SLA-driven Data Products & Custom Marketplace
+      </p>
+      <div style="display: flex; gap: 12px; margin-top: 32px;" class="anim anim-d5">
+        <span class="badge">Medallion Architecture</span>
+        <span class="badge badge-green">ML Feature Store</span>
+        <span class="badge badge-amber">Data Marketplace</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 2 — CHALLENGE OVERVIEW
+       Composition: Split — left text, right structured
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-2">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:400px;height:400px;background:var(--accent-violet);left:-150px;bottom:-100px;"></div>
+
+    <div class="slide-label anim anim-d1">The Brief</div>
+    <h2 class="anim anim-d2" style="margin-bottom: 8px;">5-Day Technical Challenge</h2>
+    <p class="text-dim anim anim-d3" style="font-size:15px; margin-bottom:36px;">Design, build & present a production-ready Data Platform on Snowflake</p>
+
+    <div class="grid-2 flex-1 anim anim-d4" style="align-items: start;">
+      <!-- Left column -->
+      <div class="flex-col gap-md">
+        <div class="card card-accent">
+          <div style="font-size:12px; color:var(--snow-blue); font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Functional Domain</div>
+          <h3 style="margin-bottom:8px;">Sales Analytics</h3>
+          <p style="font-size:14px; color:var(--text-secondary);">Using TPC-H as the canonical source baseline — a well-understood, standardized dataset representing a sales & distribution business.</p>
+        </div>
+        <div class="card card-accent">
+          <div style="font-size:12px; color:var(--snow-blue); font-weight:600; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Presentation Format</div>
+          <div style="display:flex; gap:24px; margin-top:8px;">
+            <div>
+              <div class="mono text-blue" style="font-size:28px; font-weight:700;">15<span style="font-size:14px;">min</span></div>
+              <div style="font-size:12px; color:var(--text-secondary);">Technical Demo</div>
+            </div>
+            <div>
+              <div class="mono text-amber" style="font-size:28px; font-weight:700;">15<span style="font-size:14px;">min</span></div>
+              <div style="font-size:12px; color:var(--text-secondary);">Business Pitch</div>
+            </div>
+            <div>
+              <div class="mono text-violet" style="font-size:28px; font-weight:700;">30<span style="font-size:14px;">min</span></div>
+              <div style="font-size:12px; color:var(--text-secondary);">Q&A</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Right column — deliverables -->
+      <div class="flex-col gap-sm">
+        <div style="font-size:12px; color:var(--text-dim); text-transform:uppercase; letter-spacing:2px; font-weight:600; margin-bottom:4px;">Deliverables</div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">Working Snowflake environment</span>
+        </div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">Full code repository</span>
+        </div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">Architecture diagrams</span>
+        </div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">3 SLA-driven data products</span>
+        </div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">Marketplace listing</span>
+        </div>
+        <div class="card" style="padding:16px 20px; display:flex; align-items:center; gap:12px;">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="2" width="16" height="16" rx="3" stroke="var(--accent-green)" stroke-width="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span style="font-size:14px;">Custom Marketplace UI</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 3 — ARCHITECTURE
+       Composition: Full-bleed diagram
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-3">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:500px;height:500px;background:var(--snow-blue);left:50%;top:50%;transform:translate(-50%,-50%);"></div>
+
+    <div class="slide-label anim anim-d1">Architecture</div>
+    <h2 class="anim anim-d2" style="margin-bottom:32px;">Medallion Architecture</h2>
+
+    <!-- Flow Diagram -->
+    <div class="anim anim-d3" style="display:flex; align-items:center; justify-content:center; gap:0; flex-wrap:nowrap; margin-bottom:32px;">
+      <!-- TPC-H Source -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(167,139,250,0.1); border-color:rgba(167,139,250,0.3); color:var(--accent-violet);">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">SOURCE</div>
+          TPC-H
+        </div>
+        <div class="flow-sub">Canonical baseline</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg viewBox="0 0 40 20"><path d="M0 10 L30 10 M25 5 L32 10 L25 15" stroke="var(--text-dim)" stroke-width="1.5" fill="none"/></svg>
+      </div>
+
+      <!-- Landing -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(255,255,255,0.04); border-color:var(--border-subtle); color:var(--text-secondary);">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">LANDING</div>
+          Raw Tables
+        </div>
+        <div class="flow-sub">6 source tables</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg viewBox="0 0 40 20"><path d="M0 10 L30 10 M25 5 L32 10 L25 15" stroke="var(--text-dim)" stroke-width="1.5" fill="none"/></svg>
+      </div>
+
+      <!-- Bronze -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(205,127,50,0.1); border-color:rgba(205,127,50,0.3); color:#CD7F32;">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">BRONZE</div>
+          Ingestion
+        </div>
+        <div class="flow-sub">+ metadata columns</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg viewBox="0 0 40 20"><path d="M0 10 L30 10 M25 5 L32 10 L25 15" stroke="var(--text-dim)" stroke-width="1.5" fill="none"/></svg>
+      </div>
+
+      <!-- Silver -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(192,192,192,0.08); border-color:rgba(192,192,192,0.25); color:#C0C0C0;">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">SILVER</div>
+          Cleansed
+        </div>
+        <div class="flow-sub">DAMA 6 quality</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg viewBox="0 0 40 20"><path d="M0 10 L30 10 M25 5 L32 10 L25 15" stroke="var(--text-dim)" stroke-width="1.5" fill="none"/></svg>
+      </div>
+
+      <!-- Gold -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(251,191,36,0.1); border-color:rgba(251,191,36,0.3); color:var(--accent-amber);">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">GOLD</div>
+          Dimensional
+        </div>
+        <div class="flow-sub">Star schema</div>
+      </div>
+
+      <div class="flow-arrow">
+        <svg viewBox="0 0 40 20"><path d="M0 10 L30 10 M25 5 L32 10 L25 15" stroke="var(--text-dim)" stroke-width="1.5" fill="none"/></svg>
+      </div>
+
+      <!-- Consumption -->
+      <div class="flow-node">
+        <div class="flow-box" style="background:rgba(41,181,232,0.1); border-color:rgba(41,181,232,0.3); color:var(--snow-blue);">
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px;">CONSUME</div>
+          Products
+        </div>
+        <div class="flow-sub">BI / ML / AI</div>
+      </div>
+    </div>
+
+    <!-- Platform services row -->
+    <div class="anim anim-d4" style="margin-top:8px;">
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--text-dim); margin-bottom:16px; font-weight:600;">Platform Services</div>
+      <div class="grid-4">
+        <div class="card" style="padding:16px; text-align:center;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="margin-bottom:8px;">
+            <path d="M4 8h20M4 14h20M4 20h20" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round"/>
+            <circle cx="22" cy="8" r="2" fill="var(--accent-green)"/>
+          </svg>
+          <div style="font-size:13px; font-weight:600;">Streams</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">Change Data Capture</div>
+        </div>
+        <div class="card" style="padding:16px; text-align:center;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="margin-bottom:8px;">
+            <rect x="4" y="4" width="20" height="20" rx="4" stroke="var(--snow-blue)" stroke-width="1.5"/>
+            <path d="M10 14h8M14 10v8" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div style="font-size:13px; font-weight:600;">Dynamic Tables</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">Incremental Processing</div>
+        </div>
+        <div class="card" style="padding:16px; text-align:center;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="margin-bottom:8px;">
+            <circle cx="14" cy="14" r="10" stroke="var(--snow-blue)" stroke-width="1.5"/>
+            <path d="M14 8v6l4 4" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div style="font-size:13px; font-weight:600;">Tasks</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">Orchestration</div>
+        </div>
+        <div class="card" style="padding:16px; text-align:center;">
+          <svg width="28" height="28" viewBox="0 0 28 28" fill="none" style="margin-bottom:8px;">
+            <path d="M6 20L12 8L18 16L24 6" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="8" r="2" fill="var(--accent-amber)"/>
+          </svg>
+          <div style="font-size:13px; font-weight:600;">Snowpark</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">Python Transforms</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Gold model detail -->
+    <div class="anim anim-d5" style="margin-top:24px;">
+      <div style="font-size:11px; text-transform:uppercase; letter-spacing:2px; color:var(--text-dim); margin-bottom:12px; font-weight:600;">Gold Dimensional Model</div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <span class="badge badge-amber" style="font-size:11px;">fact_orders</span>
+        <span class="badge" style="font-size:11px;">dim_customers</span>
+        <span class="badge" style="font-size:11px;">dim_products</span>
+        <span class="badge" style="font-size:11px;">dim_dates</span>
+        <span class="badge" style="font-size:11px;">dim_sales_reps</span>
+        <span class="badge badge-violet" style="font-size:11px;">consumption marts</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 4 — SNOWFLAKE FEATURES
+       Composition: Centered grid of feature cards
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-4">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:400px;height:400px;background:var(--accent-green);right:-100px;top:-100px;"></div>
+
+    <div class="slide-label anim anim-d1">Platform Capabilities</div>
+    <h2 class="anim anim-d2" style="margin-bottom:36px;">Snowflake Features Demonstrated</h2>
+
+    <div class="grid-2 flex-1 anim anim-d3" style="align-content:start;">
+      <div class="flex-col gap-sm">
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(41,181,232,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="14" height="14" rx="3" stroke="var(--snow-blue)" stroke-width="1.5"/><path d="M6 9h6M9 6v6" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Dynamic Tables</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Declarative incremental Silver-layer transformations with automatic dependency tracking</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(52,211,153,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M3 6h12M3 9h12M3 12h12" stroke="var(--accent-green)" stroke-width="1.5" stroke-linecap="round"/><circle cx="14" cy="6" r="1.5" fill="var(--accent-green)"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Streams</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Change Data Capture for real-time awareness of source mutations</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(251,191,36,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="9" r="7" stroke="var(--accent-amber)" stroke-width="1.5"/><path d="M9 5v4l3 3" stroke="var(--accent-amber)" stroke-width="1.5" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Tasks</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Cron-based scheduling & DAG orchestration for data product refreshes</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(167,139,250,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 14L8 4L12 10L16 2" stroke="var(--accent-violet)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Snowpark (Python)</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Complex transformations where SQL falls short — ML feature engineering in Python</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-col gap-sm">
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(244,114,182,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="7" width="4" height="8" rx="1" stroke="var(--accent-rose)" stroke-width="1.2"/><rect x="7" y="4" width="4" height="11" rx="1" stroke="var(--accent-rose)" stroke-width="1.2"/><rect x="12" y="2" width="4" height="13" rx="1" stroke="var(--accent-rose)" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Clustering & Search Optimization</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Performance tuning for large scan patterns on Gold-layer fact tables</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(41,181,232,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><rect x="2" y="2" width="6" height="6" rx="2" stroke="var(--snow-blue)" stroke-width="1.2"/><rect x="10" y="2" width="6" height="6" rx="2" stroke="var(--snow-blue)" stroke-width="1.2"/><rect x="6" y="10" width="6" height="6" rx="2" stroke="var(--snow-blue)" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Data Marketplace</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">Published listing with consumer discovery, subscription & install flow</div>
+          </div>
+        </div>
+        <div class="feature-item">
+          <div class="feature-icon" style="background:rgba(52,211,153,0.15);">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><circle cx="9" cy="6" r="3" stroke="var(--accent-green)" stroke-width="1.2"/><path d="M3 16c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="var(--accent-green)" stroke-width="1.2"/></svg>
+          </div>
+          <div>
+            <div style="font-weight:600; font-size:14px;">Role-Based Access Control</div>
+            <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">SALES_ANALYSTS, FINANCE, MARKETING — scoped access per data product</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 5 — DATA PRODUCTS
+       Composition: Three equal cards
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-5">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:400px;height:400px;background:var(--accent-amber);right:100px;bottom:-100px;"></div>
+
+    <div class="slide-label anim anim-d1">Data Products</div>
+    <h2 class="anim anim-d2" style="margin-bottom:8px;">3 Curated Products with SLA Enforcement</h2>
+    <p class="text-dim anim anim-d3" style="font-size:14px; margin-bottom:28px;">Each product has freshness, latency, completeness, accuracy & availability targets with pre-refresh quality gates</p>
+
+    <div class="grid-3 flex-1 anim anim-d4" style="align-items:start;">
+      <!-- Product 1 -->
+      <div class="card product-card product-1" style="padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:16px;">
+          <div class="refresh-badge" style="background:rgba(41,181,232,0.1); color:var(--snow-blue); border:1px solid rgba(41,181,232,0.2);">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v2l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Daily · 9AM ET
+          </div>
+        </div>
+        <h3 style="font-size:18px; margin-bottom:8px; color:var(--snow-blue);">Sales Rep Performance</h3>
+        <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:16px;">Monthly quota attainment, revenue metrics, and customer engagement by rep</p>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:8px; font-weight:600;">Audience</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Sales Managers</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Leadership</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Sales Ops</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); margin-bottom:6px;">SLA Compliance</div>
+        <div class="sla-bar"><div class="sla-fill" style="width:96%; background:var(--accent-green);"></div></div>
+        <div style="font-size:10px; color:var(--accent-green); text-align:right; margin-top:4px; font-family:'JetBrains Mono',monospace;">96%</div>
+      </div>
+
+      <!-- Product 2 -->
+      <div class="card product-card product-2" style="padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:16px;">
+          <div class="refresh-badge" style="background:rgba(251,191,36,0.1); color:var(--accent-amber); border:1px solid rgba(251,191,36,0.2);">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v2l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Monthly
+          </div>
+        </div>
+        <h3 style="font-size:18px; margin-bottom:8px; color:var(--accent-amber);">Revenue Forecast</h3>
+        <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:16px;">12-month customer revenue projections with conservative & optimistic scenarios</p>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:8px; font-weight:600;">Audience</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Finance</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">CFO</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Strategic Planning</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); margin-bottom:6px;">SLA Compliance</div>
+        <div class="sla-bar"><div class="sla-fill" style="width:99%; background:var(--accent-green);"></div></div>
+        <div style="font-size:10px; color:var(--accent-green); text-align:right; margin-top:4px; font-family:'JetBrains Mono',monospace;">99%</div>
+      </div>
+
+      <!-- Product 3 -->
+      <div class="card product-card product-3" style="padding:24px;">
+        <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:16px;">
+          <div class="refresh-badge" style="background:rgba(52,211,153,0.1); color:var(--accent-green); border:1px solid rgba(52,211,153,0.2);">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="6" cy="6" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v2l1.5 1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+            Weekly
+          </div>
+        </div>
+        <h3 style="font-size:18px; margin-bottom:8px; color:var(--accent-green);">Cohort Analysis</h3>
+        <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:16px;">Customer acquisition cohort retention and lifetime value by month</p>
+        <div style="font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:8px; font-weight:600;">Audience</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;">
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Marketing</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Product</span>
+          <span style="font-size:11px; padding:3px 8px; border-radius:4px; background:rgba(255,255,255,0.05); color:var(--text-secondary);">Growth</span>
+        </div>
+        <div style="font-size:11px; color:var(--text-dim); margin-bottom:6px;">SLA Compliance</div>
+        <div class="sla-bar"><div class="sla-fill" style="width:98%; background:var(--accent-green);"></div></div>
+        <div style="font-size:10px; color:var(--accent-green); text-align:right; margin-top:4px; font-family:'JetBrains Mono',monospace;">98%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 6 — ML FEATURE STORE
+       Composition: Left-heavy stats + right detail
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-6">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:500px;height:500px;background:var(--accent-rose);left:-200px;top:50%;transform:translateY(-50%);"></div>
+
+    <div class="slide-label anim anim-d1">Phase 4</div>
+    <h2 class="anim anim-d2" style="margin-bottom:32px;">ML Feature Store</h2>
+
+    <div class="grid-2 flex-1 anim anim-d3" style="align-items:start;">
+      <!-- Left: Stats + PIT -->
+      <div class="flex-col gap-lg">
+        <!-- Scale stats -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+          <div class="card" style="padding:20px; text-align:center;">
+            <div class="stat-value" style="font-size:36px;">21</div>
+            <div class="stat-label">Engineered Features</div>
+          </div>
+          <div class="card" style="padding:20px; text-align:center;">
+            <div class="stat-value" style="font-size:36px; color:var(--accent-green);">2.5M+</div>
+            <div class="stat-label">Training Rows</div>
+          </div>
+        </div>
+
+        <!-- PIT Correctness highlight -->
+        <div class="card" style="padding:24px; border: 1px solid rgba(244,114,182,0.3); background: linear-gradient(135deg, rgba(244,114,182,0.05), transparent);">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="10" stroke="var(--accent-rose)" stroke-width="1.5"/>
+              <path d="M12 6v6l4 2" stroke="var(--accent-rose)" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <div style="font-size:16px; font-weight:700; color:var(--accent-rose);">Point-in-Time Correctness</div>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.6;">
+            Every feature value is computed as-of a specific date. No future information leaks into training data — preventing the #1 cause of ML model failure in production.
+          </p>
+        </div>
+
+        <!-- Scale row -->
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div style="text-align:center;">
+            <div class="mono" style="font-size:20px; font-weight:700; color:var(--snow-blue);">~150K</div>
+            <div style="font-size:11px; color:var(--text-dim);">Customer features</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="mono" style="font-size:20px; font-weight:700; color:var(--accent-amber);">~1.5M</div>
+            <div style="font-size:11px; color:var(--text-dim);">Product features</div>
+          </div>
+          <div style="text-align:center;">
+            <div class="mono" style="font-size:20px; font-weight:700; color:var(--accent-green);">~50K</div>
+            <div style="font-size:11px; color:var(--text-dim);">Sales rep features</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Feature breakdown -->
+      <div class="flex-col gap-md">
+        <div class="card" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--snow-blue);"></div>
+            <div style="font-size:14px; font-weight:600;">Customer Features <span class="mono text-dim" style="font-size:12px;">(8)</span></div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Recency</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Frequency</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Monetary</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Segment</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Engagement</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Churn Risk</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">LTV</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:var(--snow-blue-dim); color:var(--snow-blue);">Avg Order</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-amber);"></div>
+            <div style="font-size:14px; font-weight:600;">Product Features <span class="mono text-dim" style="font-size:12px;">(9)</span></div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Revenue</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">YTD Rev</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Return Rate</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Inventory</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Rev Rank</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Days Since Sale</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Concentration</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Elasticity</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(251,191,36,0.1); color:var(--accent-amber);">Cumulative</span>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:var(--accent-green);"></div>
+            <div style="font-size:14px; font-weight:600;">Sales Rep Features <span class="mono text-dim" style="font-size:12px;">(4)</span></div>
+          </div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(52,211,153,0.1); color:var(--accent-green);">Quota</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(52,211,153,0.1); color:var(--accent-green);">YTD Revenue</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(52,211,153,0.1); color:var(--accent-green);">Attainment %</span>
+            <span style="font-size:11px; padding:4px 10px; border-radius:6px; background:rgba(52,211,153,0.1); color:var(--accent-green);">YTD Customers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 7 — GOVERNANCE & QUALITY
+       Composition: Right-heavy with gate progression
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-7">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:400px;height:400px;background:var(--accent-violet);left:50%;bottom:-200px;"></div>
+
+    <div class="slide-label anim anim-d1">Trust & Governance</div>
+    <h2 class="anim anim-d2" style="margin-bottom:32px;">Data Quality & Acceptance Gates</h2>
+
+    <div class="grid-2 flex-1 anim anim-d3" style="align-items:start;">
+      <!-- Left: DAMA 6 -->
+      <div class="flex-col gap-md">
+        <div class="card" style="padding:24px;">
+          <div style="font-size:13px; font-weight:700; margin-bottom:16px;">DAMA 6 Quality Dimensions</div>
+          <div class="flex-col gap-sm">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Completeness</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:98%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">98%</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Uniqueness</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:100%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">100%</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Timeliness</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:95%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">95%</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Validity</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:97%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">97%</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Accuracy</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:99%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">99%</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <span style="font-size:13px;">Consistency</span>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <div style="width:120px; height:4px; border-radius:2px; background:var(--bg-primary);"><div style="width:96%; height:100%; border-radius:2px; background:var(--accent-green);"></div></div>
+                <span class="mono" style="font-size:11px; color:var(--accent-green);">96%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="padding:20px;">
+          <div style="font-size:13px; font-weight:700; margin-bottom:12px;">Access Control</div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <span class="badge" style="font-size:11px;">SALES_ANALYSTS</span>
+            <span class="badge badge-amber" style="font-size:11px;">FINANCE</span>
+            <span class="badge badge-green" style="font-size:11px;">MARKETING</span>
+          </div>
+          <p style="font-size:12px; color:var(--text-dim); margin-top:10px;">Scoped grants per data product — least privilege access model</p>
+        </div>
+      </div>
+
+      <!-- Right: Acceptance Gates -->
+      <div class="flex-col gap-sm">
+        <div style="font-size:12px; text-transform:uppercase; letter-spacing:2px; color:var(--text-dim); font-weight:600; margin-bottom:4px;">6 Release Gates</div>
+        <div class="gate">
+          <div class="gate-icon">A</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Source Consistency</div>
+            <div style="font-size:11px; color:var(--text-secondary);">TPC-H baseline mapping approved</div>
+          </div>
+        </div>
+        <div class="gate">
+          <div class="gate-icon">B</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Platform Health</div>
+            <div style="font-size:11px; color:var(--text-secondary);">Dynamic Tables, Streams, Tasks, Snowpark operational</div>
+          </div>
+        </div>
+        <div class="gate">
+          <div class="gate-icon">C</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Data Quality & Trust</div>
+            <div style="font-size:11px; color:var(--text-secondary);">DAMA 6 metrics pass, rejected records handled</div>
+          </div>
+        </div>
+        <div class="gate">
+          <div class="gate-icon">D</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Product SLA Compliance</div>
+            <div style="font-size:11px; color:var(--text-secondary);">Freshness, latency, completeness, accuracy targets met</div>
+          </div>
+        </div>
+        <div class="gate">
+          <div class="gate-icon">E</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Marketplace Readiness</div>
+            <div style="font-size:11px; color:var(--text-secondary);">Listing discoverable, consumer flow validated</div>
+          </div>
+        </div>
+        <div class="gate">
+          <div class="gate-icon">F</div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">Performance & Cost</div>
+            <div style="font-size:11px; color:var(--text-secondary);">Benchmarks run, warehouse-credit guidance documented</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 8 — CUSTOM MARKETPLACE UI
+       Composition: Left text + right mockup
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-8">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:400px;height:400px;background:var(--snow-blue);right:-100px;bottom:0;"></div>
+
+    <div class="slide-label anim anim-d1">Stretch Goal</div>
+    <h2 class="anim anim-d2" style="margin-bottom:32px;">Custom Marketplace UI</h2>
+
+    <div class="grid-2 flex-1 anim anim-d3" style="align-items:start;">
+      <!-- Left: Details -->
+      <div class="flex-col gap-md">
+        <div class="card card-accent" style="padding:20px;">
+          <div style="font-size:13px; font-weight:700; margin-bottom:12px;">Tech Stack</div>
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            <span class="badge" style="font-size:11px;">FastAPI</span>
+            <span class="badge" style="font-size:11px;">Jinja2</span>
+            <span class="badge" style="font-size:11px;">Snowflake Connector</span>
+            <span class="badge badge-violet" style="font-size:11px;">Docker</span>
+            <span class="badge badge-amber" style="font-size:11px;">AWS Ready</span>
+          </div>
+        </div>
+
+        <div class="flex-col gap-sm">
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(41,181,232,0.15);">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="1" y="1" width="14" height="14" rx="3" stroke="var(--snow-blue)" stroke-width="1.2"/><rect x="4" y="4" width="3" height="3" rx="0.5" fill="var(--snow-blue)" opacity="0.5"/><rect x="9" y="4" width="3" height="3" rx="0.5" fill="var(--snow-blue)" opacity="0.5"/><rect x="4" y="9" width="3" height="3" rx="0.5" fill="var(--snow-blue)" opacity="0.5"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:600; font-size:13px;">Product Catalog</div>
+              <div style="font-size:11px; color:var(--text-secondary);">Browse all data products with live SLA status</div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(52,211,153,0.15);">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--accent-green)" stroke-width="1.2"/><path d="M8 5v3l2 2" stroke="var(--accent-green)" stroke-width="1.2" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:600; font-size:13px;">Freshness & Row Counts</div>
+              <div style="font-size:11px; color:var(--text-secondary);">Real-time data quality indicators</div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(167,139,250,0.15);">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="5" stroke="var(--accent-violet)" stroke-width="1.2"/><path d="M11 11l3 3" stroke="var(--accent-violet)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:600; font-size:13px;">AI Metadata Search</div>
+              <div style="font-size:11px; color:var(--text-secondary);">Semantic search across product metadata</div>
+            </div>
+          </div>
+          <div class="feature-item">
+            <div class="feature-icon" style="background:rgba(244,114,182,0.15);">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 12L6 4L10 8L14 2" stroke="var(--accent-rose)" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <div>
+              <div style="font-weight:600; font-size:13px;">Health Monitoring</div>
+              <div style="font-size:11px; color:var(--text-secondary);">Snowflake connectivity and gate status</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: UI Mockup -->
+      <div class="ui-mockup">
+        <div class="ui-titlebar">
+          <div class="ui-dot" style="background:#FF5F57;"></div>
+          <div class="ui-dot" style="background:#FFBD2E;"></div>
+          <div class="ui-dot" style="background:#28C840;"></div>
+          <span style="font-size:12px; color:var(--text-dim); margin-left:12px; font-family:'JetBrains Mono',monospace;">localhost:8080</span>
+        </div>
+        <div class="ui-body">
+          <div style="font-size:16px; font-weight:700; margin-bottom:4px;">Sales Analytics Data Bundle</div>
+          <div style="font-size:11px; color:var(--text-dim); margin-bottom:16px;">3 products available · All SLAs met</div>
+
+          <div class="ui-search">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="var(--text-dim)" stroke-width="1.2"/><path d="M9.5 9.5l3 3" stroke="var(--text-dim)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            Search metadata...
+          </div>
+
+          <div class="ui-card-row">
+            <div class="ui-mini-card">
+              <div style="font-size:10px; color:var(--snow-blue); font-weight:600; margin-bottom:6px;">REP PERFORMANCE</div>
+              <div style="font-size:9px; color:var(--text-dim); margin-bottom:8px;">Daily refresh</div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="mono" style="font-size:10px; color:var(--text-secondary);">1.2K rows</span>
+                <span style="font-size:9px; padding:2px 6px; border-radius:8px; background:rgba(52,211,153,0.15); color:var(--accent-green);">FRESH</span>
+              </div>
+            </div>
+            <div class="ui-mini-card">
+              <div style="font-size:10px; color:var(--accent-amber); font-weight:600; margin-bottom:6px;">REVENUE FORECAST</div>
+              <div style="font-size:9px; color:var(--text-dim); margin-bottom:8px;">Monthly refresh</div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="mono" style="font-size:10px; color:var(--text-secondary);">18K rows</span>
+                <span style="font-size:9px; padding:2px 6px; border-radius:8px; background:rgba(52,211,153,0.15); color:var(--accent-green);">FRESH</span>
+              </div>
+            </div>
+            <div class="ui-mini-card">
+              <div style="font-size:10px; color:var(--accent-green); font-weight:600; margin-bottom:6px;">COHORT ANALYSIS</div>
+              <div style="font-size:9px; color:var(--text-dim); margin-bottom:8px;">Weekly refresh</div>
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="mono" style="font-size:10px; color:var(--text-secondary);">5.4K rows</span>
+                <span style="font-size:9px; padding:2px 6px; border-radius:8px; background:rgba(52,211,153,0.15); color:var(--accent-green);">FRESH</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:8px; margin-top:8px;">
+            <div style="flex:1; height:6px; border-radius:3px; background:var(--snow-blue); opacity:0.3;"></div>
+            <div style="flex:1; height:6px; border-radius:3px; background:var(--accent-amber); opacity:0.3;"></div>
+            <div style="flex:1; height:6px; border-radius:3px; background:var(--accent-green); opacity:0.3;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 9 — BY THE NUMBERS
+       Composition: Centered grid of stat cards
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-9" style="justify-content:center;">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:600px;height:600px;background:var(--snow-blue);left:50%;top:50%;transform:translate(-50%,-50%);opacity:0.08;"></div>
+
+    <div style="text-align:center; margin-bottom:40px;">
+      <div class="slide-label anim anim-d1" style="text-align:center;">Implementation</div>
+      <h2 class="anim anim-d2">By the Numbers</h2>
+    </div>
+
+    <div class="grid-3 anim anim-d3" style="max-width:900px; margin:0 auto;">
+      <div class="card number-card">
+        <div class="stat-value">4,167<span style="font-size:20px;">+</span></div>
+        <div class="stat-label">Lines of SQL</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">across 13 files</div>
+      </div>
+      <div class="card number-card">
+        <div class="stat-value" style="color:var(--accent-green);">6</div>
+        <div class="stat-label">Python Scripts</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">orchestration · validation · API</div>
+      </div>
+      <div class="card number-card">
+        <div class="stat-value" style="color:var(--accent-amber);">18</div>
+        <div class="stat-label">Documentation Files</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">150K+ words of content</div>
+      </div>
+    </div>
+
+    <div class="grid-3 anim anim-d4" style="max-width:900px; margin:20px auto 0;">
+      <div class="card number-card">
+        <div class="stat-value" style="color:var(--accent-violet);">6</div>
+        <div class="stat-label">Database Schemas</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">LANDING → MONITORING</div>
+      </div>
+      <div class="card number-card">
+        <div class="stat-value" style="color:var(--accent-rose);">21</div>
+        <div class="stat-label">ML Features</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">with PIT correctness</div>
+      </div>
+      <div class="card number-card">
+        <div class="stat-value">3+6</div>
+        <div class="stat-label">Products + Gates</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:4px;">SLA-enforced delivery</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════
+       SLIDE 10 — KEY DIFFERENTIATORS
+       Composition: Edge-aligned left cards
+       ══════════════════════════════════════════════ -->
+  <div class="slide" id="slide-10">
+    <div class="grid-bg"></div>
+    <div class="glow-orb pulse" style="width:500px;height:500px;background:var(--snow-blue);right:-150px;top:-100px;"></div>
+
+    <div class="slide-label anim anim-d1">Why This Solution</div>
+    <h2 class="anim anim-d2" style="margin-bottom:32px;">Key Differentiators</h2>
+
+    <div class="grid-2 flex-1 anim anim-d3" style="align-items:start;">
+      <div class="flex-col gap-md">
+        <div class="card card-accent" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(41,181,232,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 14L8 2L14 14H2Z" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </div>
+            <h3 style="font-size:16px;">End-to-End Implementation</h3>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.5;">Not just design artifacts — every layer is fully working code, from raw ingestion to marketplace publication.</p>
+        </div>
+
+        <div class="card card-accent" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(244,114,182,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke="var(--accent-rose)" stroke-width="1.5"/><path d="M8 4v4l3 2" stroke="var(--accent-rose)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <h3 style="font-size:16px;">Point-in-Time ML Features</h3>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.5;">Production-grade feature store prevents data leakage — the #1 cause of ML failures in production.</p>
+        </div>
+
+        <div class="card card-accent" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(251,191,36,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="2" stroke="var(--accent-amber)" stroke-width="1.5"/><path d="M5 8l2 2 4-4" stroke="var(--accent-amber)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+            <h3 style="font-size:16px;">SLA-Driven Data Products</h3>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.5;">Not just tables — managed products with quality gates, freshness SLAs, and role-scoped access.</p>
+        </div>
+      </div>
+
+      <div class="flex-col gap-md">
+        <div class="card card-accent" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(52,211,153,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="var(--accent-green)" stroke-width="1.2"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="var(--accent-green)" stroke-width="1.2"/><rect x="5.5" y="9" width="5" height="5" rx="1" stroke="var(--accent-green)" stroke-width="1.2"/></svg>
+            </div>
+            <h3 style="font-size:16px;">Custom Marketplace UI</h3>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.5;">Stretch goal delivered — containerized web portal with AI-powered search, ready for AWS deployment.</p>
+        </div>
+
+        <div class="card card-accent" style="padding:20px;">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(167,139,250,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2v12M2 8h12" stroke="var(--accent-violet)" stroke-width="1.5" stroke-linecap="round"/><circle cx="8" cy="8" r="6" stroke="var(--accent-violet)" stroke-width="1.2" stroke-dasharray="3 3"/></svg>
+            </div>
+            <h3 style="font-size:16px;">Comprehensive Governance</h3>
+          </div>
+          <p style="font-size:13px; color:var(--text-secondary); line-height:1.5;">DAMA 6 quality framework, 6 acceptance gates, feature versioning and full lineage tracking.</p>
+        </div>
+
+        <div class="card" style="padding:20px; border: 1px solid var(--border-accent); background: linear-gradient(135deg, rgba(41,181,232,0.08), transparent);">
+          <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+            <div style="width:32px; height:32px; border-radius:8px; background:rgba(41,181,232,0.15); display:flex; align-items:center; justify-content:center;">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M4 12l4-8 4 8" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 14h12" stroke="var(--snow-blue)" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </div>
+            <h3 style="font-size:16px;">One-Command Deploy</h3>
+          </div>
+          <div class="mono" style="font-size:12px; color:var(--snow-blue); background:rgba(41,181,232,0.08); padding:10px 14px; border-radius:6px; margin-top:8px; border:1px solid rgba(41,181,232,0.15);">
+            python run_all.py --include-foundation --run-acceptance-gates
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Navigation -->
+<div class="nav-bar" id="navBar"></div>
+<div class="nav-counter" id="navCounter"></div>
+<div class="nav-hint">Arrow keys or click to navigate</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const navBar = document.getElementById('navBar');
+  const navCounter = document.getElementById('navCounter');
+  let current = 0;
+
+  // Build nav dots
+  slides.forEach((_, i) => {
+    const dot = document.createElement('button');
+    dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+    dot.onclick = () => goTo(i);
+    navBar.appendChild(dot);
+  });
+
+  function goTo(n) {
+    if (n < 0 || n >= slides.length) return;
+    slides[current].classList.remove('active');
+    navBar.children[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    navBar.children[current].classList.add('active');
+    navCounter.textContent = `${current + 1} / ${slides.length}`;
+  }
+
+  // Keyboard nav
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+    if (e.key === 'ArrowLeft') { e.preventDefault(); goTo(current - 1); }
+    if (e.key === 'Home') { e.preventDefault(); goTo(0); }
+    if (e.key === 'End') { e.preventDefault(); goTo(slides.length - 1); }
+  });
+
+  // Click nav (left/right halves)
+  document.addEventListener('click', e => {
+    if (e.target.closest('.nav-bar')) return;
+    const x = e.clientX / window.innerWidth;
+    if (x > 0.5) goTo(current + 1);
+    else goTo(current - 1);
+  });
+
+  // Touch swipe
+  let touchStart = 0;
+  document.addEventListener('touchstart', e => { touchStart = e.touches[0].clientX; });
+  document.addEventListener('touchend', e => {
+    const diff = touchStart - e.changedTouches[0].clientX;
+    if (Math.abs(diff) > 50) diff > 0 ? goTo(current + 1) : goTo(current - 1);
+  });
+
+  // Init counter
+  navCounter.textContent = `1 / ${slides.length}`;
+</script>
+</body>
+</html>
