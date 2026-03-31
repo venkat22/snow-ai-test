@@ -184,3 +184,273 @@ pre {
     width: calc(100vw - 1rem);
   }
 }
+
+/* ==========================================================================
+   Tab Navigation
+   ========================================================================== */
+
+.tab-bar {
+  display: flex;
+  gap: 0.4rem;
+  overflow-x: auto;
+  padding: 0.2rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tab {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.88rem;
+  border: 1px solid rgba(23, 33, 33, 0.12);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tab:hover {
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--accent);
+}
+
+.tab.active {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: grid;
+  gap: 1rem;
+}
+
+/* ==========================================================================
+   Hero row layout
+   ========================================================================== */
+
+.hero-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.hero-row .health {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Chart containers
+   ========================================================================== */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.chart-box {
+  background: #fff;
+  border: 1px solid rgba(23, 33, 33, 0.08);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.chart-wide {
+  background: #fff;
+  border: 1px solid rgba(23, 33, 33, 0.08);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+/* ==========================================================================
+   Data tables
+   ========================================================================== */
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.data-table thead th {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04rem;
+  color: var(--muted);
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 2px solid rgba(23, 33, 33, 0.1);
+  white-space: nowrap;
+}
+
+.data-table tbody td {
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid rgba(23, 33, 33, 0.06);
+  vertical-align: top;
+}
+
+.data-table tbody tr:hover {
+  background: rgba(15, 118, 110, 0.04);
+}
+
+/* ==========================================================================
+   Stat cards (Feature Store summary)
+   ========================================================================== */
+
+.stat-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stat-card {
+  flex: 1;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid rgba(23, 33, 33, 0.1);
+  border-radius: 12px;
+  padding: 0.9rem;
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-label {
+  display: block;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03rem;
+}
+
+/* ==========================================================================
+   Feature cards
+   ========================================================================== */
+
+.feature-card .feature-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.3rem;
+}
+
+.entity-badge {
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--accent);
+}
+
+.feature-version {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  color: var(--muted);
+}
+
+.feature-flags {
+  display: flex;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.flag {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.66rem;
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+}
+
+/* ==========================================================================
+   Lineage visualization
+   ========================================================================== */
+
+.lineage-container {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.lineage-group {
+  border-left: 3px solid var(--accent);
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+}
+
+.lineage-downstream {
+  font-weight: 700;
+  font-size: 0.92rem;
+  margin-bottom: 0.4rem;
+}
+
+.lineage-deps {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.lineage-dep {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+}
+
+.lineage-arrow {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.lineage-type {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.68rem;
+  color: var(--muted);
+  background: rgba(23, 33, 33, 0.06);
+  padding: 0.08rem 0.3rem;
+  border-radius: 4px;
+}
+
+/* ==========================================================================
+   Responsive overrides
+   ========================================================================== */
+
+@media (max-width: 760px) {
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tab-bar {
+    padding-bottom: 0.4rem;
+  }
+
+  .hero-row {
+    flex-direction: column;
+  }
+
+  .hero-row .health {
+    text-align: left;
+  }
+
+  .stat-row {
+    flex-direction: column;
+  }
+}

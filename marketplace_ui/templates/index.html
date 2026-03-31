@@ -8,48 +8,127 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/static/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
   </head>
   <body>
     <main class="page">
+      <!-- Hero (always visible) -->
       <section class="hero card">
-        <p class="eyebrow">Stretch Portal</p>
-        <h1>Snow Data Marketplace</h1>
-        <p class="subtitle">
-          Discover governed products, inspect SLA posture, and run semantic metadata search from one place.
-        </p>
-        <div class="health" id="health"></div>
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">Stretch Portal</p>
+            <h1>Snow Data Marketplace</h1>
+            <p class="subtitle">Discover governed products, inspect SLA posture, and run semantic metadata search from one place.</p>
+          </div>
+          <div class="health" id="health"></div>
+        </div>
       </section>
 
-      <section class="card">
-        <div class="section-header">
-          <h2>Data Products</h2>
-          <button id="refreshProducts">Refresh</button>
-        </div>
-        <div id="products" class="grid"></div>
-      </section>
+      <!-- Tab Navigation -->
+      <nav class="tab-bar">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="analytics">Analytics</button>
+        <button class="tab" data-tab="quality">Quality &amp; Governance</button>
+        <button class="tab" data-tab="features">Feature Store</button>
+        <button class="tab" data-tab="search">Search &amp; Gates</button>
+      </nav>
 
-      <section class="card">
-        <div class="section-header">
-          <h2>AI Metadata Search</h2>
-        </div>
-        <form id="searchForm" class="search-form">
-          <input id="query" placeholder="Try: revenue, cohort, quota, customer" minlength="2" required />
-          <button type="submit">Search</button>
-        </form>
-        <div id="results" class="results"></div>
-      </section>
+      <!-- Tab: Overview (existing products) -->
+      <div class="tab-content active" id="tab-overview">
+        <section class="card">
+          <div class="section-header">
+            <h2>Data Products</h2>
+            <button id="refreshProducts">Refresh</button>
+          </div>
+          <div id="products" class="grid"></div>
+        </section>
+      </div>
 
-      <section class="card">
-        <div class="section-header">
-          <h2>Manual Release Gate</h2>
-        </div>
-        <p>Use only after real consumer-side marketplace validation is complete.</p>
-        <form id="gateForm" class="gate-form">
-          <input id="gateNote" value="Validated from consumer account" />
-          <button type="submit">Mark Marketplace Gate Pass</button>
-        </form>
-        <pre id="gateResponse"></pre>
-      </section>
+      <!-- Tab: Analytics -->
+      <div class="tab-content" id="tab-analytics">
+        <section class="card">
+          <h2>SLA Status Distribution</h2>
+          <div class="chart-grid">
+            <div class="chart-box"><canvas id="chartSla"></canvas></div>
+            <div class="chart-box"><canvas id="chartRows"></canvas></div>
+          </div>
+        </section>
+        <section class="card">
+          <h2>Monthly Sales Trend</h2>
+          <div class="chart-wide"><canvas id="chartMonthlySales"></canvas></div>
+        </section>
+      </div>
+
+      <!-- Tab: Quality & Governance -->
+      <div class="tab-content" id="tab-quality">
+        <section class="card">
+          <div class="section-header">
+            <h2>Release Gates</h2>
+            <button id="refreshGates">Refresh</button>
+          </div>
+          <div id="gates" class="grid"></div>
+        </section>
+        <section class="card">
+          <h2>DAMA-6 Data Quality Checks</h2>
+          <div class="table-wrap" id="dqLog"></div>
+        </section>
+        <section class="card">
+          <h2>Rejected Records</h2>
+          <div id="rejected" class="grid"></div>
+        </section>
+        <section class="card">
+          <h2>Snowpark Job Telemetry</h2>
+          <div class="table-wrap" id="snowparkJobs"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Feature Store -->
+      <div class="tab-content" id="tab-features">
+        <section class="card">
+          <h2>Feature Store Summary</h2>
+          <div id="featureSummary" class="stat-row"></div>
+        </section>
+        <section class="card">
+          <div class="section-header">
+            <h2>Feature Registry</h2>
+          </div>
+          <form id="featureSearchForm" class="search-form">
+            <input id="featureQuery" placeholder="Search features by name, entity, tags..." minlength="2" />
+            <button type="submit">Search</button>
+            <button type="button" id="featureShowAll">Show All</button>
+          </form>
+          <div id="featureRegistry" class="grid"></div>
+        </section>
+        <section class="card">
+          <h2>Feature Lineage</h2>
+          <div id="featureLineage" class="lineage-container"></div>
+        </section>
+      </div>
+
+      <!-- Tab: Search & Gates (existing) -->
+      <div class="tab-content" id="tab-search">
+        <section class="card">
+          <div class="section-header">
+            <h2>AI Metadata Search</h2>
+          </div>
+          <form id="searchForm" class="search-form">
+            <input id="query" placeholder="Try: revenue, cohort, quota, customer" minlength="2" required />
+            <button type="submit">Search</button>
+          </form>
+          <div id="results" class="results"></div>
+        </section>
+        <section class="card">
+          <div class="section-header">
+            <h2>Manual Release Gate</h2>
+          </div>
+          <p>Use only after real consumer-side marketplace validation is complete.</p>
+          <form id="gateForm" class="gate-form">
+            <input id="gateNote" value="Validated from consumer account" />
+            <button type="submit">Mark Marketplace Gate Pass</button>
+          </form>
+          <pre id="gateResponse"></pre>
+        </section>
+      </div>
     </main>
     <script src="/static/app.js"></script>
   </body>
