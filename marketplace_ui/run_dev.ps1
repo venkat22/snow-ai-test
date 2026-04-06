@@ -12,8 +12,15 @@ if (-not (Test-Path $venvPython)) {
     throw "Venv not found at $venvPython. Run: python -m venv $repoRoot\.venv"
 }
 
-if (-not $env:SNOWFLAKE_TOKEN -and -not $env:SNOWFLAKE_PASSWORD) {
-    throw "Set SNOWFLAKE_TOKEN or SNOWFLAKE_PASSWORD before running this script."
+# Default to password auth with app_service_user
+if (-not $env:SNOWFLAKE_PASSWORD) {
+    $env:SNOWFLAKE_PASSWORD = 'ChangeMe!Str0ng#2026'
+}
+if (-not $env:SNOWFLAKE_USER) {
+    $env:SNOWFLAKE_USER = 'app_service_user'
+}
+if (-not $env:SNOWFLAKE_ACCOUNT) {
+    $env:SNOWFLAKE_ACCOUNT = 'hhtxheq-ba04062'
 }
 
 Write-Host "Starting marketplace UI (dev/uvicorn) on http://localhost:$Port ..." -ForegroundColor Green

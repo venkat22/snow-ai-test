@@ -2,7 +2,7 @@ param(
     [string]$ImageName    = "marketplace-ui",
     [int]$Port            = 8080,
     [string]$Account      = "hhtxheq-ba04062",
-    [string]$User         = "tarnaka",
+    [string]$User         = "app_service_user",
     [string]$Role         = "ACCOUNTADMIN",
     [string]$Warehouse    = "ANALYTICS_WH",
     [string]$Database     = "RAW_SALES",
@@ -16,7 +16,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 if (-not $env:SNOWFLAKE_TOKEN -and -not $env:SNOWFLAKE_PASSWORD) {
-    throw "Set SNOWFLAKE_TOKEN or SNOWFLAKE_PASSWORD before running this script."
+    $env:SNOWFLAKE_PASSWORD = 'ChangeMe!Str0ng#2026'
 }
 
 $repoRoot   = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
